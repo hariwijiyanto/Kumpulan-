@@ -78,26 +78,41 @@ __host__ __device__ __forceinline__ int get_bit(const BigInt *a, int i) {
 }
 
 __host__ __device__ __forceinline__ void ptx_u256Add(BigInt *res, const BigInt *a, const BigInt *b) {
-    uint64_t carry = 0;
-    for (int i = 0; i < BIGINT_WORDS; ++i) {
-        uint64_t sum = (uint64_t)a->data[i] + b->data[i] + carry;
-        res->data[i] = (uint32_t)sum;
-        carry = (sum >> 32);
-    }
+    asm volatile (
+        "add.cc.u32 %0, %8, %16; \n\t"
+        "addc.cc.u32 %1, %9, %17; \n\t"
+        "addc.cc.u32 %2, %10, %18; \n\t"
+        "addc.cc.u32 %3, %11, %19; \n\t"
+        "addc.cc.u32 %4, %12, %20; \n\t"
+        "addc.cc.u32 %5, %13, %21; \n\t"
+        "addc.cc.u32 %6, %14, %22; \n\t"
+        "addc.u32    %7, %15, %23; \n\t"
+        : "=r"(res->data[0]), "=r"(res->data[1]), "=r"(res->data[2]), "=r"(res->data[3]),
+          "=r"(res->data[4]), "=r"(res->data[5]), "=r"(res->data[6]), "=r"(res->data[7])
+        : "r"(a->data[0]), "r"(a->data[1]), "r"(a->data[2]), "r"(a->data[3]),
+          "r"(a->data[4]), "r"(a->data[5]), "r"(a->data[6]), "r"(a->data[7]),
+          "r"(b->data[0]), "r"(b->data[1]), "r"(b->data[2]), "r"(b->data[3]),
+          "r"(b->data[4]), "r"(b->data[5]), "r"(b->data[6]), "r"(b->data[7])
+    );
 }
 
 __host__ __device__ __forceinline__ void ptx_u256Sub(BigInt *res, const BigInt *a, const BigInt *b) {
-    uint32_t borrow = 0;
-    for (int i = 0; i < BIGINT_WORDS; ++i) {
-        uint64_t tmp = (uint64_t)a->data[i] - borrow;
-        if (tmp < b->data[i]) {
-            borrow = 1;
-            tmp += 0x100000000ULL;
-        } else {
-            borrow = 0;
-        }
-        res->data[i] = (uint32_t)(tmp - b->data[i]);
-    }
+    asm volatile (
+        "sub.cc.u32 %0, %8, %16; \n\t"
+        "subc.cc.u32 %1, %9, %17; \n\t"
+        "subc.cc.u32 %2, %10, %18; \n\t"
+        "subc.cc.u32 %3, %11, %19; \n\t"
+        "subc.cc.u32 %4, %12, %20; \n\t"
+        "subc.cc.u32 %5, %13, %21; \n\t"
+        "subc.cc.u32 %6, %14, %22; \n\t"
+        "subc.u32    %7, %15, %23; \n\t"
+        : "=r"(res->data[0]), "=r"(res->data[1]), "=r"(res->data[2]), "=r"(res->data[3]),
+          "=r"(res->data[4]), "=r"(res->data[5]), "=r"(res->data[6]), "=r"(res->data[7])
+        : "r"(a->data[0]), "r"(a->data[1]), "r"(a->data[2]), "r"(a->data[3]),
+          "r"(a->data[4]), "r"(a->data[5]), "r"(a->data[6]), "r"(a->data[7]),
+          "r"(b->data[0]), "r"(b->data[1]), "r"(b->data[2]), "r"(b->data[3]),
+          "r"(b->data[4]), "r"(b->data[5]), "r"(b->data[6]), "r"(b->data[7])
+    );
 }
 
 __host__ __device__ __forceinline__ void bigint_add_bigint(BigInt *res, const BigInt *a, const BigInt *b) {
