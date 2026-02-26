@@ -662,39 +662,27 @@ __global__ void mitm_reverse_search_kernel(
         return; // Skip jika tidak memilih scalar apapun
     }
 
-    uint64_t mask_lo = 0; // Menangani index 0-63
-    uint64_t mask_hi = 0; // Menangani index 64-127
-
+    // Buat array untuk menyimpan indeks scalar yang dipilih
+    uint32_t chosen_indices[256];
     BigInt n_step_bi;
     init_bigint(&n_step_bi, 0);
 
     for (uint32_t i = 0; i < num_to_choose; i++) {
         uint32_t scalar_idx;
-        bool already_chosen;
+        bool is_unique;
 
-        // Loop pencarian unik (Optimized O(1))
         do {
             scalar_idx = (uint32_t)(xorshift128plus(random_state) % num_scalars);
-
-            // Cek bitmask instan
-            if (scalar_idx < 64) {
-                already_chosen = (mask_lo & (1ULL << scalar_idx)) != 0;
-            } else if (scalar_idx < 128) {
-                already_chosen = (mask_hi & (1ULL << (scalar_idx - 64))) != 0;
-            } else {
-                // Fallback aman jika num_scalars > 128 (opsional)
-                // Sebaiknya pastikan num_scalars <= 128 di Python
-                already_chosen = false;
+            is_unique = true;
+            for (uint32_t j = 0; j < i; j++) {
+                if (chosen_indices[j] == scalar_idx) {
+                    is_unique = false;
+                    break;
+                }
             }
+        } while (!is_unique);
 
-        } while (already_chosen);
-
-        // Tandai index sebagai terpilih
-        if (scalar_idx < 64) {
-            mask_lo |= (1ULL << scalar_idx);
-        } else if (scalar_idx < 128) {
-            mask_hi |= (1ULL << (scalar_idx - 64));
-        }
+        chosen_indices[i] = scalar_idx;
 
         // Tambahkan scalar ke n_step (BigInt addition)
         BigInt current_scalar;
